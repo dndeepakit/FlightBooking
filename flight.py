@@ -1,166 +1,113 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+from datetime import date
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side
-from datetime import datetime
 
-st.set_page_config(page_title="Flight Options Tool", layout="wide")
+st.set_page_config(page_title="Flight Search Planner", layout="centered")
 
-st.title("✈️ Flight Options Generator (Refined Version)")
-st.write("Generate professional flight comparison tables for employee travel planning.")
+st.title("✈️ Flight Booking Planner (Simplified)")
+st.caption("Quick tool for admin teams to generate flight search info instantly.")
 
-# ---- INPUT SECTION ----
-st.header("🔹 Trip Details")
+# --- INPUT SECTION ---
+st.header("🔹 Flight Search Details")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2 = st.columns(2)
 with col1:
-    dep_city = st.text_input("Departure City", "")
+    from_city = st.text_input("From City", "Bangalore")
 with col2:
-    arr_city = st.text_input("Arrival City", "")
+    to_city = st.text_input("To City", "Delhi")
+
+col3, col4, col5 = st.columns(3)
 with col3:
-    dep_date = st.date_input("Departure Date")
+    dep_date = st.date_input("Departure Date", value=date.today())
 with col4:
-    ret_date = st.date_input("Return Date")
+    ret_date = st.date_input("Return Date (optional)", value=None)
+with col5:
+    travellers = st.number_input("No. of Travellers", min_value=1, max_value=10, value=1)
+
+travel_class = st.selectbox("Travel Class", ["Economy", "Premium Economy", "Business", "First Class"])
 
 st.divider()
 
-# ---- ADD FLIGHT OPTIONS ----
-st.header("🛫 Flight Options")
+if st.button("Generate Booking Links & Summary"):
+    dep_str = dep_date.strftime("%d-%b-%Y")
+    ret_str = ret_date.strftime("%d-%b-%Y") if ret_date else "One-way"
 
-num_options = st.number_input("Number of Options", min_value=1, max_value=20, value=3)
-data = []
+    # --- Summary text ---
+    st.success("✅ Flight search summary generated successfully!")
 
-for i in range(num_options):
-    st.subheader(f"Option {i+1}")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        outbound_airline = st.text_input(f"Outbound Airline (Option {i+1})", "")
-    with c2:
-        outbound_dep_time = st.text_input(f"Outbound Departure Time (Option {i+1})", "")
-    with c3:
-        outbound_arr_time = st.text_input(f"Outbound Arrival Time (Option {i+1})", "")
-    with c4:
-        outbound_price = st.text_input(f"Round Trip Cost (Option {i+1})", "")
+    summary = (
+        f"**Flight Booking Details**\n"
+        f"- From: {from_city}\n"
+        f"- To: {to_city}\n"
+        f"- Departure: {dep_str}\n"
+        f"- Return: {ret_str}\n"
+        f"- Travellers: {travellers}\n"
+        f"- Class: {travel_class}\n"
+    )
 
-    c5, c6, c7, c8 = st.columns(4)
-    with c5:
-        return_airline = st.text_input(f"Return Airline (Option {i+1})", "")
-    with c6:
-        return_dep_time = st.text_input(f"Return Departure Time (Option {i+1})", "")
-    with c7:
-        return_arr_time = st.text_input(f"Return Arrival Time (Option {i+1})", "")
-    with c8:
-        _ = st.text_input(f"(Optional) Notes (Option {i+1})", "")
+    st.markdown(summary)
 
-    data.append({
-        "Option": f"Option {i+1}",
-        "Outbound Airline": outbound_airline,
-        "Return Airline": return_airline,
-        "Outbound Departure Time": outbound_dep_time,
-        "Outbound Arrival Time": outbound_arr_time,
-        "Return Departure Time": return_dep_time,
-        "Return Arrival Time": return_arr_time,
-        "Round Trip Cost": outbound_price
-    })
+    # --- Flight Search URLs ---
+    st.subheader("🌐 Quick Flight Search Links")
 
-st.divider()
+    from_code = from_city.replace(" ", "+")
+    to_code = to_city.replace(" ", "+")
 
-# ---- GENERATE OUTPUT ----
-if st.button("Generate Flight Table"):
-    if not dep_city or not arr_city:
-        st.error("Please fill in both Departure and Arrival Cities.")
-    else:
-        df = pd.DataFrame(data)
+    st.markdown(f"""
+    - [MakeMyTrip](https://www.makemytrip.com/flights/)
+    - [EaseMyTrip](https://www.easemytrip.com/flight.html)
+    - [Skyscanner](https://www.skyscanner.co.in/)
+    - [Goibibo](https://www.goibibo.com/flights/)
+    - [Cleartrip](https://www.cleartrip.com/flights)
+    - [Yatra](https://www.yatra.com/flights)
+    """)
 
-        st.success("✅ Flight Options Generated Successfully!")
-        st.subheader(f"Flight Options For {dep_date.strftime('%d %b %Y')} - {ret_date.strftime('%d %b %Y')}")
+    # --- Excel Output ---
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Flight Search"
+    bold = Font(bold=True)
+    center = Alignment(horizontal="center", vertical="center")
+    thin = Side(border_style="thin", color="000000")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-        st.dataframe(df, use_container_width=True)
+    ws["A1"] = "Flight Booking Details"
+    ws["A1"].font = Font(size=14, bold=True)
+    ws.merge_cells("A1:B1")
 
-        # ---- Excel generation ----
-        buffer = BytesIO()
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Flight Options"
+    info = {
+        "From City": from_city,
+        "To City": to_city,
+        "Departure Date": dep_str,
+        "Return Date": ret_str,
+        "Travellers": travellers,
+        "Class": travel_class,
+    }
 
-        # Styles
-        bold = Font(bold=True)
-        center = Alignment(horizontal="center", vertical="center")
-        thin = Side(border_style="thin", color="000000")
-        border = Border(top=thin, left=thin, right=thin, bottom=thin)
+    row = 3
+    for key, val in info.items():
+        ws[f"A{row}"] = key
+        ws[f"B{row}"] = val
+        ws[f"A{row}"].font = bold
+        ws[f"A{row}"].alignment = center
+        ws[f"B{row}"].alignment = center
+        ws[f"A{row}"].border = border
+        ws[f"B{row}"].border = border
+        row += 1
 
-        # Header
-        title = f"Flight Options For {dep_date.strftime('%d %b %Y')} - {ret_date.strftime('%d %b %Y')}"
-        ws.merge_cells('A1:H1')
-        ws['A1'] = title
-        ws['A1'].font = Font(bold=True, size=13)
-        ws['A1'].alignment = center
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
 
-        # Table headers
-        headers = ["Option", "Outbound Airline", "Return Airline",
-                   "Outbound Departure Time", "Outbound Arrival Time",
-                   "Return Departure Time", "Return Arrival Time", "Round Trip Cost"]
-
-        ws.append(headers)
-
-        for cell in ws[2]:
-            cell.font = bold
-            cell.alignment = center
-            cell.border = border
-
-        # Data rows
-        for _, row in df.iterrows():
-            ws.append(row.tolist())
-
-        for row in ws.iter_rows(min_row=3, max_col=8):
-            for cell in row:
-                cell.alignment = center
-                cell.border = border
-
-        # Auto column width
-        for col in ws.columns:
-            max_length = 0
-            col_letter = col[0].column_letter
-            for cell in col:
-                if cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            ws.column_dimensions[col_letter].width = max_length + 2
-
-        wb.save(buffer)
-        buffer.seek(0)
-
-        st.download_button(
-            label="📥 Download Excel File",
-            data=buffer,
-            file_name=f"Flight_Options_{dep_city}_to_{arr_city}_{dep_date.strftime('%d%b')}-{ret_date.strftime('%d%b%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-        # ---- Copyable Text Output ----
-        st.subheader("📝 Copyable Text Summary")
-        text_output = f"Flight Options For {dep_date.strftime('%d %b %Y')} - {ret_date.strftime('%d %b %Y')}\n"
-        text_output += "-" * 80 + "\n\n"
-
-        for i, row in df.iterrows():
-            text_output += (
-                f"{row['Option']}\n"
-                f"OUTBOUND ({dep_date.strftime('%d/%m/%Y')}) | {row['Outbound Airline']} | DEP: {dep_city} {row['Outbound Departure Time']} | ARR: {arr_city} {row['Outbound Arrival Time']}\n"
-                f"RETURN ({ret_date.strftime('%d/%m/%Y')}) | {row['Return Airline']} | DEP: {arr_city} {row['Return Departure Time']} | ARR: {dep_city} {row['Return Arrival Time']}\n"
-                f"Round Trip COST: ₹{row['Round Trip Cost']}\n\n"
-            )
-
-        st.text_area("Copy this formatted text:", text_output, height=300)
-
-        st.subheader("🌍 Quick Search Links")
-        st.markdown(f"""
-        - [MakeMyTrip](https://www.makemytrip.com/flights)
-        - [Skyscanner](https://www.skyscanner.co.in/)
-        - [EaseMyTrip](https://www.easemytrip.com/)
-        - [Goibibo](https://www.goibibo.com/)
-        - [ClearTrip](https://www.cleartrip.com/flights)
-        - [Yatra](https://www.yatra.com/flights)
-        """)
+    st.download_button(
+        label="📥 Download Excel Summary",
+        data=buffer,
+        file_name=f"Flight_Search_{from_city}_to_{to_city}_{dep_str}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 st.markdown("---")
-st.caption("© 2025 Flight Options Tool | Cloud-based version for Admin Team")
+st.caption("© 2025 Simplified Flight Planner | Built for internal admin use")
